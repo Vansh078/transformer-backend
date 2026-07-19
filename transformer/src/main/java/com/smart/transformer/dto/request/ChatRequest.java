@@ -14,4 +14,10 @@ public class ChatRequest {
 
     @NotBlank(message = "Question is required")
     private String question;
+
+    /**
+     * Optional. If omitted, a new conversation is started. If provided, the question
+     * is appended to that conversation's history so the LLM keeps prior turns in context.
+     */
+    private Long conversationId;
 }

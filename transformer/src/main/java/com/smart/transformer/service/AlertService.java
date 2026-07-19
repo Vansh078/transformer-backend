@@ -23,6 +23,8 @@ public class AlertService {
     private final AlertRepository alertRepository;
     private final TransformerService transformerService;
     private final EmailService emailService;
+    private final AlertIntelligenceService alertIntelligenceService;
+    private final ActivityLogService activityLogService;
 
     @Transactional
     public AlertResponse raise(AlertRequest request) {
@@ -40,6 +42,12 @@ public class AlertService {
         if (request.getSeverity() == AlertSeverity.CRITICAL) {
             emailService.sendCriticalAlertEmail(transformer, alert.getMessage());
         }
+
+        // Phase 2 AI: auto-generate the incident narrative + explanation in the background
+        alertIntelligenceService.enrichAsync(saved.getId());
+
+        activityLogService.record("ALERT_RAISED", "Alert", saved.getId(),
+                request.getSeverity() + " on transformer " + transformer.getAssetTag());
 
         return EntityMapper.toResponse(saved);
     }
@@ -65,5 +73,9 @@ public class AlertService {
 
     public long countOpenCritical() {
         return alertRepository.countByAcknowledgedFalseAndSeverity(AlertSeverity.CRITICAL);
+    }
+
+    public AlertResponse explain(Long alertId) {
+        return EntityMapper.toResponse(alertIntelligenceService.explainNow(alertId));
     }
 }

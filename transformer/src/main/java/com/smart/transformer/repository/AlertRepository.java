@@ -11,4 +11,7 @@ public interface AlertRepository extends JpaRepository<Alert, Long> {
     Page<Alert> findByTransformerIdOrderByCreatedAtDesc(Long transformerId, Pageable pageable);
     Page<Alert> findBySeverityOrderByCreatedAtDesc(AlertSeverity severity, Pageable pageable);
     long countByAcknowledgedFalseAndSeverity(AlertSeverity severity);
+    long countByTransformerIdAndAcknowledgedFalse(Long transformerId);
+    long countByTransformerIdAndAcknowledgedFalseAndSeverity(Long transformerId, AlertSeverity severity);
+    java.util.List<Alert> findTop10ByMessageContainingIgnoreCase(String message);
 }

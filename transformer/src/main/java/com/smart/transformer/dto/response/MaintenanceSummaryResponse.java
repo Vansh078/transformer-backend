@@ -9,8 +9,9 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class ChatResponse {
-    private Long conversationId;
-    private String answer;
-    private String contextSummary; // what data was fed to the LLM, useful for the "Explainable AI" feature too
+public class MaintenanceSummaryResponse {
+    private Long transformerId;
+    private String transformerName;
+    private int recordsConsidered;
+    private String summary;
 }

@@ -66,7 +66,9 @@ public final class EntityMapper {
                 a.getMessage(),
                 a.isAcknowledged(),
                 a.getResolvedAt(),
-                a.getCreatedAt()
+                a.getCreatedAt(),
+                a.getNarrative(),
+                a.getExplanation()
         );
     }
 
