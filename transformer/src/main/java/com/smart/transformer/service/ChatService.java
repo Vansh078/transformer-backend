@@ -128,7 +128,6 @@ public class ChatService {
         if (latest != null) {
             sb.append("Latest reading (").append(latest.getRecordedAt()).append("): ")
                     .append("temp=").append(latest.getTemperatureCelsius()).append("C, ")
-                    .append("oil=").append(latest.getOilLevelPercent()).append("%, ")
                     .append("vibration=").append(latest.getVibrationMm()).append("mm, ")
                     .append("load=").append(latest.getLoadCurrentAmps()).append("A, ")
                     .append("anomaly_score=").append(latest.getAnomalyScore()).append("\n");

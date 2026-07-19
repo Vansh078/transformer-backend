@@ -64,7 +64,6 @@ public class PdfReportService {
             for (SensorReadingResponse r : readings) {
                 table.addCell(String.valueOf(r.getRecordedAt()));
                 table.addCell(fmt(r.getTemperatureCelsius()));
-                table.addCell(fmt(r.getOilLevelPercent()));
                 table.addCell(fmt(r.getVibrationMm()));
                 table.addCell(fmt(r.getLoadCurrentAmps()));
                 table.addCell(fmt(r.getAnomalyScore()));

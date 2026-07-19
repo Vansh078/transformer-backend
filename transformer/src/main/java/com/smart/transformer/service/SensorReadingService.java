@@ -37,11 +37,9 @@ public class SensorReadingService {
         reading.setTransformer(transformer);
         reading.setDevice(device);
         reading.setTemperatureCelsius(request.getTemperatureCelsius());
-        reading.setOilLevelPercent(request.getOilLevelPercent());
         reading.setVibrationMm(request.getVibrationMm());
         reading.setLoadCurrentAmps(request.getLoadCurrentAmps());
         reading.setVoltageVolts(request.getVoltageVolts());
-        reading.setHumidityPercent(request.getHumidityPercent());
         reading.setRecordedAt(request.getRecordedAt() != null ? request.getRecordedAt() : Instant.now());
 
         SensorReading saved = sensorReadingRepository.save(reading);

@@ -76,11 +76,9 @@ public class AlertIntelligenceService {
         if (latest != null) {
             sb.append("Latest sensor reading (").append(latest.getRecordedAt()).append("): ")
                     .append("temp=").append(latest.getTemperatureCelsius()).append("C, ")
-                    .append("oil=").append(latest.getOilLevelPercent()).append("%, ")
                     .append("vibration=").append(latest.getVibrationMm()).append("mm, ")
                     .append("load=").append(latest.getLoadCurrentAmps()).append("A, ")
                     .append("voltage=").append(latest.getVoltageVolts()).append("V, ")
-                    .append("humidity=").append(latest.getHumidityPercent()).append("%, ")
                     .append("anomaly_score=").append(latest.getAnomalyScore()).append("\n");
         } else {
             sb.append("No sensor readings available.\n");

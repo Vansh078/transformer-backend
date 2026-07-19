@@ -28,15 +28,11 @@ public class SensorReading {
 
     private Double temperatureCelsius;
 
-    private Double oilLevelPercent;
-
     private Double vibrationMm;
 
     private Double loadCurrentAmps;
 
     private Double voltageVolts;
-
-    private Double humidityPercent;
 
     @Column(name = "anomaly_score")
     private Double anomalyScore; // set by AI sidecar

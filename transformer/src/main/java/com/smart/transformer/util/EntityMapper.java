@@ -46,11 +46,9 @@ public final class EntityMapper {
                 r.getTransformer() != null ? r.getTransformer().getId() : null,
                 r.getDevice() != null ? r.getDevice().getDeviceUid() : null,
                 r.getTemperatureCelsius(),
-                r.getOilLevelPercent(),
                 r.getVibrationMm(),
                 r.getLoadCurrentAmps(),
                 r.getVoltageVolts(),
-                r.getHumidityPercent(),
                 r.getAnomalyScore(),
                 r.getRecordedAt()
         );

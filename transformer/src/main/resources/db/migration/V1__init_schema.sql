@@ -51,11 +51,9 @@ CREATE TABLE sensor_readings (
     transformer_id BIGINT NOT NULL REFERENCES transformers(id) ON DELETE CASCADE,
     device_id BIGINT REFERENCES devices(id) ON DELETE SET NULL,
     temperature_celsius DOUBLE PRECISION,
-    oil_level_percent DOUBLE PRECISION,
     vibration_mm DOUBLE PRECISION,
     load_current_amps DOUBLE PRECISION,
     voltage_volts DOUBLE PRECISION,
-    humidity_percent DOUBLE PRECISION,
     anomaly_score DOUBLE PRECISION,
     recorded_at TIMESTAMPTZ NOT NULL
 );
