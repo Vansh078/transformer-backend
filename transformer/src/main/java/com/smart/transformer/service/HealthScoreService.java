@@ -1,13 +1,14 @@
 package com.smart.transformer.service;
 
-import com.smart.transformer.dto.request.AlertRequest;
 import com.smart.transformer.entity.SensorReading;
 import com.smart.transformer.entity.Transformer;
 import com.smart.transformer.entity.enums.AlertSeverity;
 import com.smart.transformer.entity.enums.AlertSource;
 import com.smart.transformer.entity.enums.TransformerStatus;
+import com.smart.transformer.event.AnomalyDetectedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -16,6 +17,12 @@ import java.util.Map;
 /**
  * Talks to the FastAPI sidecar (Isolation Forest) to score a sensor reading
  * for anomalies and derive a rolling health score for the transformer.
+ *
+ * Publishes {@link AnomalyDetectedEvent} instead of calling AlertService directly:
+ * HealthScoreService already sits behind AlertService in the dependency chain
+ * (AlertService -> AlertIntelligenceService -> SensorReadingService -> HealthScoreService),
+ * so a direct HealthScoreService -> AlertService dependency would close the loop.
+ * AlertService listens for this event instead (see AlertService#onAnomalyDetected).
  */
 @Slf4j
 @Service
@@ -24,7 +31,7 @@ public class HealthScoreService {
 
     private final WebClient aiSidecarWebClient;
     private final TransformerService transformerService;
-    private final AlertService alertService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public void scoreAsync(SensorReading reading) {
         Transformer transformer = reading.getTransformer();
@@ -57,13 +64,13 @@ public class HealthScoreService {
         transformerService.updateHealthScore(transformerId, result.healthScore(), status);
 
         if (status == TransformerStatus.CRITICAL || status == TransformerStatus.WARNING) {
-            AlertRequest alertRequest = new AlertRequest();
-            alertRequest.setTransformerId(transformerId);
-            alertRequest.setSeverity(status == TransformerStatus.CRITICAL ? AlertSeverity.CRITICAL : AlertSeverity.WARNING);
-            alertRequest.setSource(AlertSource.AI_ANOMALY_DETECTION);
-            alertRequest.setMessage("Anomaly detected — score " + result.anomalyScore()
-                    + ", predicted health score " + result.healthScore());
-            alertService.raise(alertRequest);
+            AlertSeverity severity = status == TransformerStatus.CRITICAL ? AlertSeverity.CRITICAL : AlertSeverity.WARNING;
+            eventPublisher.publishEvent(new AnomalyDetectedEvent(
+                    transformerId,
+                    severity,
+                    AlertSource.AI_ANOMALY_DETECTION,
+                    result.anomalyScore(),
+                    result.healthScore()));
         }
     }
 
