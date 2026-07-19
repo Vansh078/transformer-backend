@@ -80,4 +80,20 @@ public final class EntityMapper {
                 m.getNextDueAt()
         );
     }
+
+    public static ReportResponse toResponse(Report r) {
+        return new ReportResponse(
+                r.getId(),
+                r.getTransformer() != null ? r.getTransformer().getId() : null,
+                r.getTransformer() != null ? r.getTransformer().getName() : null,
+                r.getReportType(),
+                r.getReportName(),
+                r.getStatus(),
+                r.getGeneratedAt(),
+                r.getGeneratedBy(),
+                r.getFileSizeBytes(),
+                r.getFailureReason(),
+                null // signed download URL is issued on demand, not derived from the entity
+        );
+    }
 }

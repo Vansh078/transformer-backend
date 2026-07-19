@@ -1,8 +1,13 @@
 package com.smart.transformer.job;
 
+import com.smart.transformer.entity.Report;
 import com.smart.transformer.entity.Transformer;
+import com.smart.transformer.entity.enums.ReportStatus;
+import com.smart.transformer.entity.enums.ReportType;
 import com.smart.transformer.repository.TransformerRepository;
 import com.smart.transformer.service.EmailService;
+import com.smart.transformer.service.ReportService;
+import com.smart.transformer.service.SupabaseStorageService;
 import lombok.extern.slf4j.Slf4j;
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;
@@ -11,8 +16,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 /**
- * Quartz job that emails a fleet health summary on a schedule
- * (wired up via QuartzConfig — daily/weekly/monthly cadence configurable there).
+ * Quartz job that runs every day at midnight (see QuartzConfig): generates a daily
+ * PDF health report for every transformer, uploads each to Supabase Storage,
+ * saves its metadata, and emails the report link to maintenance engineers.
  *
  * NOTE: Quartz instantiates Job classes itself via a no-arg constructor (reflection),
  * bypassing normal Spring bean creation. Field-based @Autowired + the
@@ -27,27 +33,41 @@ public class DailyReportJob implements Job {
     private TransformerRepository transformerRepository;
 
     @Autowired
+    private ReportService reportService;
+
+    @Autowired
+    private SupabaseStorageService supabaseStorageService;
+
+    @Autowired
     private EmailService emailService;
 
-    @Value("${aws.ses.alert-recipients}")
-    private String recipients;
+    @Value("${aws.ses.report-recipients:${aws.ses.alert-recipients}}")
+    private String reportRecipients;
 
     @Override
     public void execute(JobExecutionContext context) {
-        log.info("Running scheduled fleet health summary job");
+        log.info("Running scheduled daily report generation job");
 
-        StringBuilder html = new StringBuilder("<h2>Daily Fleet Health Summary</h2><table border='1' cellpadding='6'>");
-        html.append("<tr><th>Asset Tag</th><th>Name</th><th>Status</th><th>Health Score</th></tr>");
+        int succeeded = 0;
+        int failed = 0;
 
-        for (Transformer t : transformerRepository.findAll()) {
-            html.append("<tr><td>").append(t.getAssetTag())
-                    .append("</td><td>").append(t.getName())
-                    .append("</td><td>").append(t.getStatus())
-                    .append("</td><td>").append(t.getHealthScore() != null ? t.getHealthScore() : "-")
-                    .append("</td></tr>");
+        for (Transformer transformer : transformerRepository.findAll()) {
+            try {
+                Report report = reportService.generateScheduledReport(transformer, ReportType.DAILY);
+                if (report.getStatus() == ReportStatus.GENERATED && report.getStoragePath() != null) {
+                    String downloadUrl = supabaseStorageService.generateSignedUrl(report.getStoragePath(), 3600);
+                    emailService.sendDailyReportEmail(reportRecipients, transformer, downloadUrl);
+                    succeeded++;
+                } else {
+                    failed++;
+                }
+            } catch (Exception e) {
+                failed++;
+                log.warn("Daily report generation failed for transformer {}: {}",
+                        transformer.getAssetTag(), e.getMessage());
+            }
         }
-        html.append("</table>");
 
-        emailService.sendReportEmail(recipients, "Daily Fleet Health Summary", html.toString());
+        log.info("Daily report generation job complete: {} succeeded, {} failed", succeeded, failed);
     }
 }

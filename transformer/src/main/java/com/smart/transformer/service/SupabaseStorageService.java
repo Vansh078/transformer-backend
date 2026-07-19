@@ -26,11 +26,15 @@ public class SupabaseStorageService {
     private String bucket;
 
     /**
-     * Uploads bytes to a private bucket and returns the storage object path
-     * (NOT a public URL — this bucket should be private for sensitive reports).
+     * Uploads bytes to a private bucket under a report-type folder
+     * (e.g. "daily/", "manual/", "critical/", "weekly/", "monthly/") and returns the
+     * storage object path (NOT a public URL — this bucket should be private for sensitive reports).
+     *
+     * @param folder   report-type subfolder within the bucket, e.g. "manual" or "critical"
+     * @param fileName leaf file name, e.g. "TX-001-1692123456789.pdf"
      */
-    public String uploadPdf(String fileName, byte[] pdfBytes) {
-        String objectPath = "reports/" + fileName;
+    public String uploadPdf(String folder, String fileName, byte[] pdfBytes) {
+        String objectPath = folder + "/" + fileName;
 
         supabaseWebClient.put()
                 .uri("/storage/v1/object/{bucket}/{path}", bucket, objectPath)
@@ -45,6 +49,7 @@ public class SupabaseStorageService {
 
     /**
      * Generates a short-lived signed URL so the frontend can download a private object.
+     * Called on demand (never persisted) — the DB only stores the object path.
      */
     public String generateSignedUrl(String objectPath, int expiresInSeconds) {
         SignRequest body = new SignRequest(expiresInSeconds);
@@ -57,6 +62,22 @@ public class SupabaseStorageService {
                 .block();
 
         return response != null ? supabaseUrl + "/storage/v1" + response.signedURL() : null;
+    }
+
+    /**
+     * Deletes an object from storage — used by the report retention/cleanup job
+     * when purging reports past their configured retention period.
+     */
+    public void deleteObject(String objectPath) {
+        try {
+            supabaseWebClient.method(org.springframework.http.HttpMethod.DELETE)
+                    .uri("/storage/v1/object/{bucket}/{path}", bucket, objectPath)
+                    .retrieve()
+                    .toBodilessEntity()
+                    .block();
+        } catch (Exception e) {
+            log.warn("Failed to delete storage object {}: {}", objectPath, e.getMessage());
+        }
     }
 
     private record SignRequest(int expiresIn) {}
