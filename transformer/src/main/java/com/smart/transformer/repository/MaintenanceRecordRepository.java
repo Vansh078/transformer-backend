@@ -7,4 +7,5 @@ import java.util.List;
 
 public interface MaintenanceRecordRepository extends JpaRepository<MaintenanceRecord, Long> {
     List<MaintenanceRecord> findByTransformerIdOrderByPerformedAtDesc(Long transformerId);
+    long countByTransformerId(Long transformerId);
 }

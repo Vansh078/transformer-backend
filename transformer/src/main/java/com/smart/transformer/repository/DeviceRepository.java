@@ -9,4 +9,5 @@ import java.util.Optional;
 public interface DeviceRepository extends JpaRepository<Device, Long> {
     Optional<Device> findByDeviceUid(String deviceUid);
     List<Device> findByTransformerId(Long transformerId);
+    List<Device> findTop10ByDeviceUidContainingIgnoreCase(String deviceUid);
 }

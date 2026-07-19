@@ -71,6 +71,8 @@ public class PdfReportService {
             }
 
             document.add(table);
+        } catch (java.io.IOException e) {
+            throw new java.io.UncheckedIOException("Failed to build PDF report for " + transformer.getAssetTag(), e);
         }
 
         return baos.toByteArray();

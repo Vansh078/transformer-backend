@@ -23,4 +23,6 @@ public class AlertResponse {
     private boolean acknowledged;
     private Instant resolvedAt;
     private Instant createdAt;
+    private String narrative;
+    private String explanation;
 }

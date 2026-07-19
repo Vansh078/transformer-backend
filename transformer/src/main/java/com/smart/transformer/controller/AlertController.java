@@ -47,4 +47,14 @@ public class AlertController {
         Pageable pageable = PageUtil.of(page, size, "createdAt", "desc");
         return ApiResponse.success(PagedResponse.from(alertService.getByTransformer(transformerId, pageable)));
     }
+
+    /**
+     * Explainable AI + Automatic Incident Narratives — (re)generates the AI-authored
+     * narrative and explanation for an alert on demand, in case the automatic
+     * background enrichment hasn't finished yet or needs a refresh.
+     */
+    @PostMapping("/{id}/explain")
+    public ApiResponse<AlertResponse> explain(@PathVariable Long id) {
+        return ApiResponse.success(alertService.explain(id));
+    }
 }

@@ -38,4 +38,12 @@ public class Alert extends BaseEntity {
 
     @Column(name = "resolved_at")
     private Instant resolvedAt;
+
+    /** LLM-authored plain-English incident narrative — "Automatic Incident Narratives" feature. */
+    @Column(columnDefinition = "TEXT")
+    private String narrative;
+
+    /** LLM-authored explanation of why the alert fired — "Explainable AI" feature. */
+    @Column(columnDefinition = "TEXT")
+    private String explanation;
 }

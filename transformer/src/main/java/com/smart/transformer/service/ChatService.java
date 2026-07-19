@@ -1,51 +1,124 @@
 package com.smart.transformer.service;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.smart.transformer.dto.request.ChatRequest;
 import com.smart.transformer.dto.response.AlertResponse;
+import com.smart.transformer.dto.response.ChatConversationResponse;
+import com.smart.transformer.dto.response.ChatMessageResponse;
 import com.smart.transformer.dto.response.ChatResponse;
+import com.smart.transformer.dto.response.PagedResponse;
 import com.smart.transformer.dto.response.SensorReadingResponse;
+import com.smart.transformer.entity.ChatConversation;
+import com.smart.transformer.entity.ChatMessage;
 import com.smart.transformer.entity.Transformer;
+import com.smart.transformer.entity.enums.ChatRole;
+import com.smart.transformer.exception.ResourceNotFoundException;
+import com.smart.transformer.repository.ChatConversationRepository;
+import com.smart.transformer.repository.ChatMessageRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
- * "Ask Your Transformer" — Phase 2 feature.
- * Grounds an OpenAI chat completion in the transformer's actual live data
- * (latest reading, open alerts) so answers are specific, not generic.
+ * "Ask Your Transformer" — Phase 2 LLM chat feature, backed by OpenAI.
+ * Grounds every answer in the transformer's actual live data (latest reading, open
+ * alerts) and persists conversation history so follow-up questions keep context,
+ * just like a normal chat assistant.
  */
 @Service
 @RequiredArgsConstructor
 public class ChatService {
 
-    private final WebClient openAiWebClient;
+    private static final int MAX_HISTORY_MESSAGES = 20; // cap sent to the LLM to bound token usage
+
+    private final OpenAiService openAiService;
+    private final ChatConversationRepository conversationRepository;
+    private final ChatMessageRepository messageRepository;
     private final TransformerService transformerService;
     private final SensorReadingService sensorReadingService;
     private final AlertService alertService;
+    private final ActivityLogService activityLogService;
 
-    @Value("${openai.model:gpt-4o-mini}")
-    private String model;
-
+    @Transactional
     public ChatResponse ask(ChatRequest request) {
         Transformer transformer = transformerService.getEntity(request.getTransformerId());
-        SensorReadingResponse latest = sensorReadingService.getLatest(request.getTransformerId());
-        List<AlertResponse> openAlerts = alertService
-                .getByTransformer(request.getTransformerId(), PageRequest.of(0, 5))
-                .getContent();
 
-        String context = buildContext(transformer, latest, openAlerts);
+        ChatConversation conversation = request.getConversationId() != null
+                ? getOwnedConversation(request.getConversationId(), transformer.getId())
+                : startConversation(transformer);
 
-        String answer = callOpenAi(context, request.getQuestion());
+        String context = buildContext(transformer);
 
-        return new ChatResponse(answer, context);
+        ChatMessage userMessage = new ChatMessage();
+        userMessage.setConversation(conversation);
+        userMessage.setRole(ChatRole.USER);
+        userMessage.setContent(request.getQuestion());
+        messageRepository.save(userMessage);
+
+        String answer = callOpenAi(conversation, context);
+
+        ChatMessage assistantMessage = new ChatMessage();
+        assistantMessage.setConversation(conversation);
+        assistantMessage.setRole(ChatRole.ASSISTANT);
+        assistantMessage.setContent(answer);
+        messageRepository.save(assistantMessage);
+
+        conversation.setUpdatedAt(java.time.Instant.now());
+        conversationRepository.save(conversation);
+
+        activityLogService.record("CHAT_ASK", "Transformer", transformer.getId(),
+                "conversationId=" + conversation.getId());
+
+        return new ChatResponse(conversation.getId(), answer, context);
     }
 
-    private String buildContext(Transformer t, SensorReadingResponse latest, List<AlertResponse> alerts) {
+    public PagedResponse<ChatConversationResponse> getConversations(Long transformerId, Pageable pageable) {
+        return PagedResponse.from(
+                conversationRepository.findByTransformerIdOrderByUpdatedAtDesc(transformerId, pageable)
+                        .map(c -> toSummary(c)));
+    }
+
+    public ChatConversationResponse getConversation(Long conversationId) {
+        ChatConversation conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> ResourceNotFoundException.of("Chat conversation", conversationId));
+        List<ChatMessageResponse> messages = messageRepository
+                .findByConversationIdOrderByCreatedAtAsc(conversationId).stream()
+                .map(this::toResponse)
+                .toList();
+        ChatConversationResponse response = toSummary(conversation);
+        response.setMessages(messages);
+        return response;
+    }
+
+    private ChatConversation startConversation(Transformer transformer) {
+        ChatConversation conversation = new ChatConversation();
+        conversation.setTransformer(transformer);
+        conversation.setUserId(currentUserId());
+        conversation.setTitle("Chat about " + transformer.getName());
+        return conversationRepository.save(conversation);
+    }
+
+    private ChatConversation getOwnedConversation(Long conversationId, Long transformerId) {
+        ChatConversation conversation = conversationRepository.findById(conversationId)
+                .orElseThrow(() -> ResourceNotFoundException.of("Chat conversation", conversationId));
+        if (conversation.getTransformer() == null || !conversation.getTransformer().getId().equals(transformerId)) {
+            throw ResourceNotFoundException.of("Chat conversation", conversationId);
+        }
+        return conversation;
+    }
+
+    private String buildContext(Transformer t) {
+        SensorReadingResponse latest = sensorReadingService.getLatest(t.getId());
+        List<AlertResponse> alerts = alertService.getByTransformer(t.getId(), PageRequest.of(0, 5)).getContent();
+
         StringBuilder sb = new StringBuilder();
         sb.append("Transformer: ").append(t.getName()).append(" (").append(t.getAssetTag()).append(")\n");
         sb.append("Location: ").append(t.getLocation() != null ? t.getLocation() : "unknown").append("\n");
@@ -76,45 +149,49 @@ public class ChatService {
         return sb.toString();
     }
 
-    private String callOpenAi(String context, String question) {
+    private String callOpenAi(ChatConversation conversation, String context) {
         String systemPrompt = "You are a maintenance assistant for an electrical transformer fleet. "
-                + "Answer using ONLY the data provided below. If the data doesn't cover the question, "
-                + "say so plainly rather than guessing. Keep answers concise and actionable for a field engineer.\n\n"
-                + context;
+                + "Answer using ONLY the data provided below plus the conversation history. If the data "
+                + "doesn't cover the question, say so plainly rather than guessing. Keep answers concise "
+                + "and actionable for a field engineer.\n\n" + context;
 
-        ChatCompletionRequest body = new ChatCompletionRequest(
-                model,
-                List.of(
-                        new ChatMessage("system", systemPrompt),
-                        new ChatMessage("user", question)
-                ),
-                0.3
-        );
+        List<OpenAiService.Message> messages = new java.util.ArrayList<>();
+        messages.add(new OpenAiService.Message("system", systemPrompt));
 
-        ChatCompletionResponse response = openAiWebClient.post()
-                .uri("/chat/completions")
-                .bodyValue(body)
-                .retrieve()
-                .bodyToMono(ChatCompletionResponse.class)
-                .block();
-
-        if (response == null || response.choices() == null || response.choices().isEmpty()) {
-            return "I couldn't generate a response right now — please try again.";
+        // history already includes the just-persisted user message for this turn
+        List<ChatMessage> history = messageRepository.findByConversationIdOrderByCreatedAtAsc(conversation.getId());
+        int fromIndex = Math.max(0, history.size() - MAX_HISTORY_MESSAGES);
+        for (ChatMessage m : history.subList(fromIndex, history.size())) {
+            messages.add(new OpenAiService.Message(m.getRole() == ChatRole.ASSISTANT ? "assistant" : "user", m.getContent()));
         }
 
-        return response.choices().get(0).message().content();
+        return openAiService.complete(messages, 0.3);
     }
 
-    // --- minimal request/response shapes for OpenAI's /v1/chat/completions endpoint ---
+    private ChatConversationResponse toSummary(ChatConversation c) {
+        return new ChatConversationResponse(
+                c.getId(),
+                c.getTransformer() != null ? c.getTransformer().getId() : null,
+                c.getTransformer() != null ? c.getTransformer().getName() : null,
+                c.getTitle(),
+                c.getCreatedAt(),
+                c.getUpdatedAt(),
+                null
+        );
+    }
 
-    private record ChatMessage(String role, String content) {}
+    private ChatMessageResponse toResponse(ChatMessage m) {
+        return new ChatMessageResponse(m.getId(), m.getRole(), m.getContent(), m.getCreatedAt());
+    }
 
-    private record ChatCompletionRequest(
-            String model,
-            List<ChatMessage> messages,
-            double temperature) {}
-
-    private record ChatCompletionResponse(List<Choice> choices) {}
-
-    private record Choice(@JsonProperty("message") ChatMessage message) {}
+    private UUID currentUserId() {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.getPrincipal() instanceof Jwt jwt) {
+                return UUID.fromString(jwt.getSubject());
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
 }
