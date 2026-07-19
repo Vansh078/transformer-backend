@@ -14,4 +14,7 @@ public interface AlertRepository extends JpaRepository<Alert, Long> {
     long countByTransformerIdAndAcknowledgedFalse(Long transformerId);
     long countByTransformerIdAndAcknowledgedFalseAndSeverity(Long transformerId, AlertSeverity severity);
     java.util.List<Alert> findTop10ByMessageContainingIgnoreCase(String message);
+
+    /** Used by ReportService to ground the Alert Summary section of generated PDF reports. */
+    java.util.List<Alert> findTop50ByTransformerIdOrderByCreatedAtDesc(Long transformerId);
 }

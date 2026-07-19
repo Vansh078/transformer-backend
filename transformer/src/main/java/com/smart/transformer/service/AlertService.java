@@ -3,6 +3,7 @@ package com.smart.transformer.service;
 import com.smart.transformer.dto.request.AlertRequest;
 import com.smart.transformer.dto.response.AlertResponse;
 import com.smart.transformer.entity.Alert;
+import com.smart.transformer.entity.Report;
 import com.smart.transformer.entity.Transformer;
 import com.smart.transformer.entity.enums.AlertSeverity;
 import com.smart.transformer.event.AnomalyDetectedEvent;
@@ -11,9 +12,11 @@ import com.smart.transformer.repository.AlertRepository;
 import com.smart.transformer.util.EntityMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,6 +32,11 @@ public class AlertService {
     private final EmailService emailService;
     private final AlertIntelligenceService alertIntelligenceService;
     private final ActivityLogService activityLogService;
+    private final ReportService reportService;
+    private final SupabaseStorageService supabaseStorageService;
+
+    @Value("${aws.ses.report-recipients:${aws.ses.alert-recipients}}")
+    private String reportRecipients;
 
     @Transactional
     public AlertResponse raise(AlertRequest request) {
@@ -45,6 +53,9 @@ public class AlertService {
 
         if (request.getSeverity() == AlertSeverity.CRITICAL) {
             emailService.sendCriticalAlertEmail(transformer, alert.getMessage());
+            // Report Management: whenever a transformer enters a critical state, generate a
+            // report and email it immediately alongside the alert notification.
+            generateAndEmailCriticalReportAsync(transformer.getId());
         }
 
         // Phase 2 AI: auto-generate the incident narrative + explanation in the background
@@ -104,6 +115,25 @@ public class AlertService {
         } catch (Exception e) {
             log.warn("Failed to raise alert from AnomalyDetectedEvent for transformer {}: {}",
                     event.transformerId(), e.getMessage());
+        }
+    }
+
+    /**
+     * Generates a critical PDF report and emails the download link immediately.
+     * Runs asynchronously so PDF generation/upload never delays alert creation
+     * or the critical alert email that was just dispatched above.
+     */
+    @Async
+    public void generateAndEmailCriticalReportAsync(Long transformerId) {
+        try {
+            Transformer transformer = transformerService.getEntity(transformerId);
+            Report report = reportService.generateCriticalReport(transformer);
+            if (report.getStoragePath() != null) {
+                String downloadUrl = supabaseStorageService.generateSignedUrl(report.getStoragePath(), 3600);
+                emailService.sendCriticalReportEmail(reportRecipients, transformer, downloadUrl);
+            }
+        } catch (Exception e) {
+            log.warn("Failed to generate/email critical report for transformer {}: {}", transformerId, e.getMessage());
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.smart.transformer.config;
 
 import com.smart.transformer.job.DailyReportJob;
+import com.smart.transformer.job.ReportCleanupJob;
 import org.quartz.*;
 import org.quartz.spi.TriggerFiredBundle;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
@@ -38,11 +39,13 @@ public class QuartzConfig {
     @Bean
     public SchedulerFactoryBean schedulerFactoryBean(ApplicationContext applicationContext,
                                                        JobDetail dailyReportJobDetail,
-                                                       Trigger dailyReportJobTrigger) {
+                                                       Trigger dailyReportJobTrigger,
+                                                       JobDetail reportCleanupJobDetail,
+                                                       Trigger reportCleanupJobTrigger) {
         SchedulerFactoryBean factory = new SchedulerFactoryBean();
         factory.setJobFactory(new AutowiringSpringBeanJobFactory(applicationContext));
-        factory.setJobDetails(dailyReportJobDetail);
-        factory.setTriggers(dailyReportJobTrigger);
+        factory.setJobDetails(dailyReportJobDetail, reportCleanupJobDetail);
+        factory.setTriggers(dailyReportJobTrigger, reportCleanupJobTrigger);
         return factory;
     }
 
@@ -56,11 +59,30 @@ public class QuartzConfig {
 
     @Bean
     public Trigger dailyReportJobTrigger(JobDetail dailyReportJobDetail) {
-        // Runs every day at 7:00 AM server time — adjust the cron as needed
+        // Runs every day at midnight server time — generates a report per transformer
+        // and emails the link to maintenance engineers (Report Management task 5).
         return TriggerBuilder.newTrigger()
                 .forJob(dailyReportJobDetail)
                 .withIdentity("dailyReportTrigger")
-                .withSchedule(CronScheduleBuilder.cronSchedule("0 0 7 * * ?"))
+                .withSchedule(CronScheduleBuilder.cronSchedule("0 0 0 * * ?"))
+                .build();
+    }
+
+    @Bean
+    public JobDetail reportCleanupJobDetail() {
+        return JobBuilder.newJob(ReportCleanupJob.class)
+                .withIdentity("reportCleanupJob")
+                .storeDurably()
+                .build();
+    }
+
+    @Bean
+    public Trigger reportCleanupJobTrigger(JobDetail reportCleanupJobDetail) {
+        // Runs weekly (Sunday 1 AM) — archives/deletes reports past the configured retention period.
+        return TriggerBuilder.newTrigger()
+                .forJob(reportCleanupJobDetail)
+                .withIdentity("reportCleanupTrigger")
+                .withSchedule(CronScheduleBuilder.cronSchedule("0 0 1 ? * SUN"))
                 .build();
     }
 }

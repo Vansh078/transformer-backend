@@ -32,6 +32,11 @@ supabase:
   service-role-key: ${SUPABASE_SERVICE_ROLE_KEY}
   storage-bucket: ${SUPABASE_STORAGE_BUCKET:reports}
 
+reports:
+  # Retention window (days) for the weekly cleanup job (ReportCleanupJob) —
+  # reports older than this are archived and their Supabase object removed.
+  retention-days: ${REPORTS_RETENTION_DAYS:90}
+
 ai-sidecar:
   base-url: ${AI_SIDECAR_URL:http://localhost:8000}
 
@@ -47,6 +52,8 @@ aws:
   ses:
     from-address: ${SES_FROM_ADDRESS}
     alert-recipients: ${SES_ALERT_RECIPIENTS}
+    # Recipients for daily/critical report emails — defaults to the alert recipients if unset.
+    report-recipients: ${SES_REPORT_RECIPIENTS:${SES_ALERT_RECIPIENTS}}
 
 management:
   endpoints:
