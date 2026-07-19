@@ -1,4 +1,7 @@
 spring:
+  config:
+    import: aws-parameterstore:/transformer/
+
   application:
     name: transformer
 
@@ -42,7 +45,7 @@ openai:
 aws:
   access-key-id: ${AWS_ACCESS_KEY_ID}
   secret-access-key: ${AWS_SECRET_ACCESS_KEY}
-  region: ${AWS_REGION:ap-south-1}
+  region: ${AWS_REGION:us-east-1}
   ses:
     from-address: ${SES_FROM_ADDRESS}
     alert-recipients: ${SES_ALERT_RECIPIENTS}
