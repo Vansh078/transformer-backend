@@ -7,6 +7,7 @@ import com.smart.transformer.repository.TransformerRepository;
 import com.smart.transformer.util.EntityMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /** Phase 4 "Global Search" — fans a single query out across transformers, devices, and alerts. */
 @Service
@@ -17,6 +18,7 @@ public class GlobalSearchService {
     private final DeviceRepository deviceRepository;
     private final AlertRepository alertRepository;
 
+    @Transactional(readOnly = true)
     public GlobalSearchResponse search(String query) {
         String q = query == null ? "" : query.trim();
 

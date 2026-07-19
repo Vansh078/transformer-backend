@@ -80,12 +80,14 @@ public class ChatService {
         return new ChatResponse(conversation.getId(), answer, context);
     }
 
+    @Transactional(readOnly = true)
     public PagedResponse<ChatConversationResponse> getConversations(Long transformerId, Pageable pageable) {
         return PagedResponse.from(
                 conversationRepository.findByTransformerIdOrderByUpdatedAtDesc(transformerId, pageable)
                         .map(c -> toSummary(c)));
     }
 
+    @Transactional(readOnly = true)
     public ChatConversationResponse getConversation(Long conversationId) {
         ChatConversation conversation = conversationRepository.findById(conversationId)
                 .orElseThrow(() -> ResourceNotFoundException.of("Chat conversation", conversationId));

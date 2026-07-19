@@ -56,7 +56,6 @@ public class PdfReportService {
                     .useAllAvailableWidth();
             table.addHeaderCell("Recorded At");
             table.addHeaderCell("Temp (C)");
-            table.addHeaderCell("Oil %");
             table.addHeaderCell("Vibration");
             table.addHeaderCell("Load (A)");
             table.addHeaderCell("Anomaly Score");

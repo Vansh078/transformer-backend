@@ -20,7 +20,7 @@ public class MaintenanceController {
     private final MaintenanceService maintenanceService;
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('ENGINEER')")
+    //@PreAuthorize("hasRole('ADMIN') or hasRole('ENGINEER')")
     public ApiResponse<MaintenanceResponse> log(@Valid @RequestBody MaintenanceRequest request) {
         return ApiResponse.success("Maintenance record logged", maintenanceService.log(request));
     }

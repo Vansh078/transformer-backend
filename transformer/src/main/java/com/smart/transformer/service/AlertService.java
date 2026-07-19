@@ -65,11 +65,13 @@ public class AlertService {
         return EntityMapper.toResponse(alertRepository.save(alert));
     }
 
+    @Transactional(readOnly = true)
     public Page<AlertResponse> getOpenAlerts(Pageable pageable) {
         return alertRepository.findByAcknowledgedFalseOrderByCreatedAtDesc(pageable)
                 .map(EntityMapper::toResponse);
     }
 
+    @Transactional(readOnly = true)
     public Page<AlertResponse> getByTransformer(Long transformerId, Pageable pageable) {
         return alertRepository.findByTransformerIdOrderByCreatedAtDesc(transformerId, pageable)
                 .map(EntityMapper::toResponse);

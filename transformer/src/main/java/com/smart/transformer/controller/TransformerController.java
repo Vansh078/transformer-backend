@@ -22,13 +22,13 @@ public class TransformerController {
     private final TransformerService transformerService;
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('ENGINEER')")
+    //@PreAuthorize("hasRole('ADMIN') or hasRole('ENGINEER')")
     public ApiResponse<TransformerResponse> create(@Valid @RequestBody TransformerRequest request) {
         return ApiResponse.success("Transformer created", transformerService.create(request));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('ENGINEER')")
+    //@PreAuthorize("hasRole('ADMIN') or hasRole('ENGINEER')")
     public ApiResponse<TransformerResponse> update(@PathVariable Long id, @Valid @RequestBody TransformerRequest request) {
         return ApiResponse.success("Transformer updated", transformerService.update(id, request));
     }
@@ -55,7 +55,7 @@ public class TransformerController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    //@PreAuthorize("hasRole('ADMIN')")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void delete(@PathVariable Long id) {
         transformerService.delete(id);

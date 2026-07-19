@@ -53,10 +53,12 @@ public class UserService {
         return response;
     }
 
+    @Transactional(readOnly = true)
     public List<UserResponse> getAll() {
         return userRepository.findAll().stream().map(this::toResponse).toList();
     }
 
+    @Transactional(readOnly = true)
     public UserResponse getById(UUID id) {
         return toResponse(getEntity(id));
     }

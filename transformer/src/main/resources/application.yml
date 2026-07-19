@@ -6,15 +6,13 @@ spring:
     name: transformer
 
   datasource:
-    # Use the Supabase Session Pooler (port 6543) for the app at runtime;
-    # use the direct connection (port 5432) if Flyway migrations misbehave through the pooler.
-    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:6543}/postgres?sslmode=require
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:5432}/postgres?sslmode=require
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD}
 
   jpa:
     hibernate:
-      ddl-auto: validate   # schema is owned by Flyway migrations, not Hibernate auto-DDL
+      ddl-auto: validate
     properties:
       hibernate:
         format_sql: true
@@ -26,7 +24,7 @@ spring:
     locations: classpath:db/migration
 
   quartz:
-    job-store-type: memory   # switch to jdbc for durability across restarts if needed later
+    job-store-type: memory
 
 supabase:
   url: ${SUPABASE_URL}
@@ -66,3 +64,15 @@ logging:
   level:
     com.smart.transformer: INFO
     org.springframework.security: WARN
+
+springdoc:
+  api-docs:
+    enabled: true
+
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha
+    displayRequestDuration: true
+    docExpansion: none

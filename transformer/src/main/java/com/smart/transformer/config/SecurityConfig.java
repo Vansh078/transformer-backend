@@ -13,21 +13,20 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtGra
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.beans.factory.annotation.Value;
 
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
-
 /**
- * Validates JWTs issued by Supabase Auth. Supabase signs tokens with a shared
- * HS256 secret (Project Settings -> API -> JWT Secret), so we build a symmetric
- * NimbusJwtDecoder instead of pointing at a JWKS endpoint.
+ * Validates JWTs issued by Supabase Auth. This project's Supabase instance uses
+ * the newer asymmetric JWT signing keys (ES256), so tokens are verified against
+ * Supabase's public JWKS endpoint rather than a shared HS256 secret. The public
+ * keys are fetched (and cached) from Supabase automatically — no secret to manage
+ * here, and key rotation on Supabase's side "just works" without redeploying.
  */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
 
-    @Value("${supabase.jwt-secret}")
-    private String jwtSecret;
+    @Value("${supabase.url}")
+    private String supabaseUrl;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -35,9 +34,9 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/auth/**", "/actuator/health", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                        .requestMatchers("/api/v1/devices/ingest").permitAll() // ESP32 posts readings via a device secret, not a user JWT
-                        .anyRequest().authenticated()
+                        // TEMPORARY — auth disabled for local testing. Revert to `.anyRequest().authenticated()`
+                        // (and remove this comment block) before deploying anywhere real.
+                        .anyRequest().permitAll()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
@@ -48,8 +47,10 @@ public class SecurityConfig {
 
     @Bean
     public JwtDecoder jwtDecoder() {
-        SecretKeySpec key = new SecretKeySpec(jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-        return NimbusJwtDecoder.withSecretKey(key).build();
+        // Supabase's JWKS discovery endpoint — publishes only public keys, safe to fetch over HTTP(S).
+        // NimbusJwtDecoder caches these in memory and refreshes them automatically on key rotation.
+        String jwkSetUri = supabaseUrl + "/auth/v1/.well-known/jwks.json";
+        return NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
     }
 
     private JwtAuthenticationConverter jwtAuthenticationConverter() {

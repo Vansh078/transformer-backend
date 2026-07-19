@@ -52,17 +52,20 @@ public class SensorReadingService {
         return EntityMapper.toResponse(saved);
     }
 
+    @Transactional(readOnly = true)
     public Page<SensorReadingResponse> getHistory(Long transformerId, Pageable pageable) {
         return sensorReadingRepository.findByTransformerIdOrderByRecordedAtDesc(transformerId, pageable)
                 .map(EntityMapper::toResponse);
     }
 
+    @Transactional(readOnly = true)
     public List<SensorReadingResponse> getRange(Long transformerId, Instant from, Instant to) {
         return sensorReadingRepository
                 .findByTransformerIdAndRecordedAtBetweenOrderByRecordedAtAsc(transformerId, from, to)
                 .stream().map(EntityMapper::toResponse).toList();
     }
 
+    @Transactional(readOnly = true)
     public SensorReadingResponse getLatest(Long transformerId) {
         SensorReading latest = sensorReadingRepository.findFirstByTransformerIdOrderByRecordedAtDesc(transformerId);
         return latest != null ? EntityMapper.toResponse(latest) : null;

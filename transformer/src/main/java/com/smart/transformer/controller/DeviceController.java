@@ -19,7 +19,7 @@ public class DeviceController {
     private final DeviceService deviceService;
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('ENGINEER')")
+    //@PreAuthorize("hasRole('ADMIN') or hasRole('ENGINEER')")
     public ApiResponse<DeviceResponse> register(@Valid @RequestBody DeviceRequest request) {
         return ApiResponse.success("Device registered", deviceService.register(request));
     }

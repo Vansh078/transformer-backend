@@ -20,13 +20,13 @@ public class AlertController {
     private final AlertService alertService;
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('ENGINEER')")
+    //@PreAuthorize("hasRole('ADMIN') or hasRole('ENGINEER')")
     public ApiResponse<AlertResponse> raise(@Valid @RequestBody AlertRequest request) {
         return ApiResponse.success("Alert raised", alertService.raise(request));
     }
 
     @PatchMapping("/{id}/acknowledge")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('ENGINEER')")
+    //@PreAuthorize("hasRole('ADMIN') or hasRole('ENGINEER')")
     public ApiResponse<AlertResponse> acknowledge(@PathVariable Long id) {
         return ApiResponse.success("Alert acknowledged", alertService.acknowledge(id));
     }

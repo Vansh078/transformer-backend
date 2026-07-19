@@ -22,37 +22,38 @@ public class UserController {
     private final UserService userService;
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+  //  @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<UserResponse> provision(@Valid @RequestBody UserRequest request) {
         return ApiResponse.success("User provisioned", userService.provision(request));
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    //@PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<List<UserResponse>> getAll() {
         return ApiResponse.success(userService.getAll());
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    //@PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<UserResponse> getById(@PathVariable UUID id) {
         return ApiResponse.success(userService.getById(id));
     }
 
     @PatchMapping("/{id}/role")
-    @PreAuthorize("hasRole('ADMIN')")
+    //@PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<UserResponse> updateRole(@PathVariable UUID id, @Valid @RequestBody UserRoleUpdateRequest request) {
         return ApiResponse.success("Role updated", userService.updateRole(id, request));
     }
 
     @PatchMapping("/{id}/activate")
-    @PreAuthorize("hasRole('ADMIN')")
+    //@PreAuthorize("hasRole('ADMIN')")
+    
     public ApiResponse<UserResponse> activate(@PathVariable UUID id) {
         return ApiResponse.success("User activated", userService.setActive(id, true));
     }
 
     @PatchMapping("/{id}/deactivate")
-    @PreAuthorize("hasRole('ADMIN')")
+   // @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<UserResponse> deactivate(@PathVariable UUID id) {
         return ApiResponse.success("User deactivated", userService.setActive(id, false));
     }
