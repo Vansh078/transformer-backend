@@ -1,0 +1,65 @@
+spring:
+  application:
+    name: transformer
+
+  datasource:
+    # Use the Supabase Session Pooler (port 6543) for the app at runtime;
+    # use the direct connection (port 5432) if Flyway migrations misbehave through the pooler.
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT:6543}/postgres?sslmode=require
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate   # schema is owned by Flyway migrations, not Hibernate auto-DDL
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: false
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+
+  quartz:
+    job-store-type: memory   # switch to jdbc for durability across restarts if needed later
+
+supabase:
+  url: ${SUPABASE_URL}
+  jwt-secret: ${SUPABASE_JWT_SECRET}
+  service-role-key: ${SUPABASE_SERVICE_ROLE_KEY}
+  storage-bucket: ${SUPABASE_STORAGE_BUCKET:reports}
+
+ai-sidecar:
+  base-url: ${AI_SIDECAR_URL:http://localhost:8000}
+
+openai:
+  api-key: ${OPENAI_API_KEY}
+  base-url: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+  model: ${OPENAI_MODEL:gpt-4o-mini}
+
+aws:
+  access-key-id: ${AWS_ACCESS_KEY_ID}
+  secret-access-key: ${AWS_SECRET_ACCESS_KEY}
+  region: ${AWS_REGION:ap-south-1}
+  ses:
+    from-address: ${SES_FROM_ADDRESS}
+    alert-recipients: ${SES_ALERT_RECIPIENTS}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
+server:
+  port: ${SERVER_PORT:8080}
+
+logging:
+  level:
+    com.smart.transformer: INFO
+    org.springframework.security: WARN
