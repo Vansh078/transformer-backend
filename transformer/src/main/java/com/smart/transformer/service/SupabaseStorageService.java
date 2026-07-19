@@ -6,6 +6,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.util.UriUtils;
+
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 /**
  * Uploads/signs files against Supabase Storage's REST API.
@@ -37,7 +42,7 @@ public class SupabaseStorageService {
         String objectPath = folder + "/" + fileName;
 
         supabaseWebClient.put()
-                .uri("/storage/v1/object/{bucket}/{path}", bucket, objectPath)
+                .uri(objectUri("/storage/v1/object", objectPath))
                 .contentType(MediaType.APPLICATION_PDF)
                 .bodyValue(pdfBytes)
                 .retrieve()
@@ -55,7 +60,7 @@ public class SupabaseStorageService {
         SignRequest body = new SignRequest(expiresInSeconds);
 
         SignResponse response = supabaseWebClient.post()
-                .uri("/storage/v1/object/sign/{bucket}/{path}", bucket, objectPath)
+                .uri(objectUri("/storage/v1/object/sign", objectPath))
                 .bodyValue(body)
                 .retrieve()
                 .bodyToMono(SignResponse.class)
@@ -71,13 +76,35 @@ public class SupabaseStorageService {
     public void deleteObject(String objectPath) {
         try {
             supabaseWebClient.method(org.springframework.http.HttpMethod.DELETE)
-                    .uri("/storage/v1/object/{bucket}/{path}", bucket, objectPath)
+                    .uri(objectUri("/storage/v1/object", objectPath))
                     .retrieve()
                     .toBodilessEntity()
                     .block();
         } catch (Exception e) {
             log.warn("Failed to delete storage object {}: {}", objectPath, e.getMessage());
         }
+    }
+
+    /**
+     * Builds "{basePath}/{bucket}/{objectPath}" as a plain string rather than substituting
+     * {@code objectPath} into a single {@code {path}} URI template variable.
+     *
+     * <p>Spring's {@code UriComponentsBuilder} percent-encodes every "/" inside a template
+     * variable's <em>value</em> (turning "critical/TX-001.pdf" into "critical%2FTX-001.pdf"),
+     * because a template variable is expected to represent exactly one path segment. Supabase's
+     * upload and sign endpoints resolve/verify against the literal decoded object key, so an
+     * upload made against the %2F-encoded key and a later sign request that resolves differently
+     * (or a client hitting the real slash-separated path) fall out of sync — that mismatch is
+     * what surfaces as the "InvalidSignature" / 400 error on download. Embedding the path
+     * directly into the URI string (with each segment individually percent-encoded for any
+     * genuinely unsafe characters) keeps "/" as a literal path separator instead.
+     */
+    private String objectUri(String basePath, String objectPath) {
+        String encodedBucket = UriUtils.encodePathSegment(bucket, StandardCharsets.UTF_8);
+        String encodedPath = Arrays.stream(objectPath.split("/"))
+                .map(segment -> UriUtils.encodePathSegment(segment, StandardCharsets.UTF_8))
+                .collect(Collectors.joining("/"));
+        return basePath + "/" + encodedBucket + "/" + encodedPath;
     }
 
     private record SignRequest(int expiresIn) {}
