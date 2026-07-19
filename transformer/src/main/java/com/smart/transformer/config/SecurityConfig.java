@@ -34,9 +34,29 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // TEMPORARY — auth disabled for local testing. Revert to `.anyRequest().authenticated()`
-                        // (and remove this comment block) before deploying anywhere real.
-                        .anyRequest().permitAll()
+                        // Authentication endpoints must be reachable without a token — that's how
+                        // clients obtain one in the first place.
+                        .requestMatchers("/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/google")
+                        .permitAll()
+                        // ESP32 devices post sensor readings directly and have no way to hold a user
+                        // JWT. Kept open (as it effectively was before this module, since everything
+                        // was permitAll) — replace with a per-device shared-secret header check as a
+                        // follow-up rather than requiring end-user auth here.
+                        .requestMatchers("/api/v1/readings/ingest").permitAll()
+                        // API documentation / Swagger UI.
+                        .requestMatchers(
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html"
+                        ).permitAll()
+                        // Ops health checks.
+                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
+                        // WebSocket/SockJS handshake — STOMP-level JWT auth (channel interceptor) is
+                        // a follow-up; not required for this module per the current scope.
+                        .requestMatchers("/ws/**").permitAll()
+                        // Everything else — transformers, devices, reports, alerts, /api/v1/auth/me,
+                        // /api/v1/auth/logout, etc. — requires a valid Supabase-issued JWT.
+                        .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))

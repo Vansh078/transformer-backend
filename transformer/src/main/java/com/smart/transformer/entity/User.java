@@ -1,5 +1,6 @@
 package com.smart.transformer.entity;
 
+import com.smart.transformer.entity.enums.AuthProvider;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
@@ -26,6 +27,14 @@ public class User extends BaseEntity {
 
     @Column(name = "full_name", length = 150)
     private String fullName;
+
+    @Column(name = "organization", length = 150)
+    private String organization;
+
+    /** How this user authenticates — EMAIL (password) or GOOGLE (OAuth via Supabase). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "auth_provider", nullable = false, length = 20)
+    private AuthProvider authProvider = AuthProvider.EMAIL;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "role_id", nullable = false)

@@ -5,6 +5,7 @@ import com.smart.transformer.dto.request.UserRoleUpdateRequest;
 import com.smart.transformer.dto.response.UserResponse;
 import com.smart.transformer.entity.Role;
 import com.smart.transformer.entity.User;
+import com.smart.transformer.entity.enums.AuthProvider;
 import com.smart.transformer.exception.DuplicateResourceException;
 import com.smart.transformer.exception.ResourceNotFoundException;
 import com.smart.transformer.repository.RoleRepository;
@@ -45,6 +46,8 @@ public class UserService {
         user.setId(request.getId());
         user.setEmail(request.getEmail());
         user.setFullName(request.getFullName());
+        user.setOrganization(request.getOrganization());
+        user.setAuthProvider(request.getAuthProvider() != null ? request.getAuthProvider() : AuthProvider.EMAIL);
         user.setRole(role);
         user.setActive(true);
 
@@ -92,6 +95,7 @@ public class UserService {
         return new UserResponse(
                 u.getId(), u.getEmail(), u.getFullName(),
                 u.getRole() != null ? u.getRole().getName() : null,
-                u.isActive(), u.getCreatedAt());
+                u.isActive(), u.getCreatedAt(),
+                u.getAuthProvider(), u.getOrganization());
     }
 }

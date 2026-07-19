@@ -1,5 +1,6 @@
 package com.smart.transformer.dto.response;
 
+import com.smart.transformer.entity.enums.AuthProvider;
 import com.smart.transformer.entity.enums.RoleName;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -20,4 +21,6 @@ public class UserResponse {
     private RoleName role;
     private boolean active;
     private Instant createdAt;
+    private AuthProvider authProvider;
+    private String organization;
 }
