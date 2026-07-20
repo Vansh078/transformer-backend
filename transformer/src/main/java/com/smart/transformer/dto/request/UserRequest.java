@@ -1,5 +1,6 @@
 package com.smart.transformer.dto.request;
 
+import com.smart.transformer.entity.enums.AuthProvider;
 import com.smart.transformer.entity.enums.RoleName;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -26,6 +27,11 @@ public class UserRequest {
     private String email;
 
     private String fullName;
+
+    private String organization;
+
+    /** Defaults to EMAIL when not specified (manual/admin provisioning). */
+    private AuthProvider authProvider;
 
     @NotNull(message = "Role is required")
     private RoleName role;
