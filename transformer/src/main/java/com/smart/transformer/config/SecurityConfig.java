@@ -2,87 +2,21 @@ package com.smart.transformer.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.beans.factory.annotation.Value;
 
-/**
- * Validates JWTs issued by Supabase Auth. This project's Supabase instance uses
- * the newer asymmetric JWT signing keys (ES256), so tokens are verified against
- * Supabase's public JWKS endpoint rather than a shared HS256 secret. The public
- * keys are fetched (and cached) from Supabase automatically — no secret to manage
- * here, and key rotation on Supabase's side "just works" without redeploying.
- */
 @Configuration
-@EnableWebSecurity
-@EnableMethodSecurity
 public class SecurityConfig {
 
-    @Value("${supabase.url}")
-    private String supabaseUrl;
+	@Bean
+	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
-    @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http
-                .csrf(csrf -> csrf.disable())
-                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        // Authentication endpoints must be reachable without a token — that's how
-                        // clients obtain one in the first place.
-                        .requestMatchers("/api/v1/auth/register", "/api/v1/auth/login", "/api/v1/auth/google")
-                        .permitAll()
-                        // ESP32 devices post sensor readings directly and have no way to hold a user
-                        // JWT. Kept open (as it effectively was before this module, since everything
-                        // was permitAll) — replace with a per-device shared-secret header check as a
-                        // follow-up rather than requiring end-user auth here.
-                        .requestMatchers("/api/v1/readings/ingest").permitAll()
-                        // API documentation / Swagger UI.
-                        .requestMatchers(
-                                "/v3/api-docs/**",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html"
-                        ).permitAll()
-                        // Ops health checks.
-                        .requestMatchers("/actuator/health", "/actuator/health/**").permitAll()
-                        // WebSocket/SockJS handshake — STOMP-level JWT auth (channel interceptor) is
-                        // a follow-up; not required for this module per the current scope.
-                        .requestMatchers("/ws/**").permitAll()
-                        // Everything else — transformers, devices, reports, alerts, /api/v1/auth/me,
-                        // /api/v1/auth/logout, etc. — requires a valid Supabase-issued JWT.
-                        .anyRequest().authenticated()
-                )
-                .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter()))
-                );
+	    http
+	        .csrf(csrf -> csrf.disable())
+	        .authorizeHttpRequests(auth -> auth
+	            .anyRequest().permitAll()
+	        );
 
-        return http.build();
-    }
-
-    @Bean
-    public JwtDecoder jwtDecoder() {
-        // Supabase's JWKS discovery endpoint — publishes only public keys, safe to fetch over HTTP(S).
-        // NimbusJwtDecoder caches these in memory and refreshes them automatically on key rotation.
-        String jwkSetUri = supabaseUrl + "/auth/v1/.well-known/jwks.json";
-        return NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
-    }
-
-    private JwtAuthenticationConverter jwtAuthenticationConverter() {
-        JwtGrantedAuthoritiesConverter authoritiesConverter = new JwtGrantedAuthoritiesConverter();
-        // Supabase JWTs carry app role info under user_metadata / app_metadata rather than "scope",
-        // so role-based checks are done in the service layer against our own `app_users` table
-        // rather than relying purely on the JWT claims here.
-        authoritiesConverter.setAuthorityPrefix("ROLE_");
-        authoritiesConverter.setAuthoritiesClaimName("role");
-
-        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
-        converter.setJwtGrantedAuthoritiesConverter(authoritiesConverter);
-        return converter;
-    }
-}
+	    return http.build();
+	}	}

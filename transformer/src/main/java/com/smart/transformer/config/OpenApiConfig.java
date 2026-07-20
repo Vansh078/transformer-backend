@@ -14,17 +14,19 @@ public class OpenApiConfig {
     @Bean
     public OpenAPI transformerOpenApi() {
         final String schemeName = "bearerAuth";
+
         return new OpenAPI()
                 .info(new Info()
                         .title("Transformer Health Monitoring Platform API")
                         .description("AI-powered predictive maintenance & decision support system")
                         .version("v1"))
                 .addSecurityItem(new SecurityRequirement().addList(schemeName))
-                .components(new Components().addSecuritySchemes(schemeName,
-                        new SecurityScheme()
-                                .name(schemeName)
-                                .type(SecurityScheme.Type.HTTP)
-                                .scheme("bearer")
-                                .bearerFormat("JWT")));
+                .components(new Components()
+                        .addSecuritySchemes(schemeName,
+                                new SecurityScheme()
+                                        .name(schemeName)
+                                        .type(SecurityScheme.Type.HTTP)
+                                        .scheme("bearer")
+                                        .bearerFormat("JWT")));
     }
 }

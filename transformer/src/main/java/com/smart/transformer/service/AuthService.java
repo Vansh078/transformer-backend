@@ -85,7 +85,7 @@ public class AuthService {
     }
 
     /** Authenticates email/password credentials against Supabase and returns the issued session. */
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthResponse login(LoginRequest request) {
         SupabaseAuthService.SupabaseSession session = supabaseAuthService.signInWithPassword(
                 request.getEmail(), request.getPassword());
